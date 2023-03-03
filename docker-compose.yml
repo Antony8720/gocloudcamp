@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+   go-app:
+    restart: always
+    build: ./
+    command: ./test-assignment-gocloudcamp
+    ports:
+      - 8080:8080
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_NAME=${DB_NAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+
+   db:
+    restart: always
+    image: postgres:13.0-alpine
+    volumes:
+      - /var/lib/postgresql/data/
+    ports:
+      - 5436:5432
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+
+
+  
+  
+  
+  

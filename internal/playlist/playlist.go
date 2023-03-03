@@ -2,6 +2,7 @@ package playlist
 
 import (
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -11,8 +12,8 @@ const (
 	eventPlay    event = iota // 0
 	eventStop                 // 1
 	eventNext                 // 2
-	eventPrev                 //3
-	eventPause                //4
+	eventPrev                 // 3
+	eventPause                // 4
 	eventPlaying              // 5
 )
 
@@ -20,25 +21,22 @@ type Song struct {
 	name     string
 	duration int
 	previous *Song
-	next     *Song
+	Next     *Song
 }
 
 type Playlist struct {
-	name       string
 	head       *Song
 	tail       *Song
 	nowPlaying *Song
 	pause      bool
-	// next       bool
-	// prev       bool
 
 	playingTime time.Duration
 	events      chan event
 }
 
-func NewPlaylist(name string) *Playlist {
+// Creating new playlist
+func NewPlaylist() *Playlist {
 	p := &Playlist{
-		name:   name,
 		events: make(chan event, 1),
 	}
 
@@ -47,6 +45,7 @@ func NewPlaylist(name string) *Playlist {
 	return p
 }
 
+// Event processing
 func (p *Playlist) processEventLoop() {
 	for {
 		event := <-p.events
@@ -59,16 +58,24 @@ func (p *Playlist) processEventLoop() {
 		case eventStop:
 			p.nowPlaying = nil
 			p.playingTime = 0
+			p.head = nil
+			p.tail = nil
 		case eventNext:
 			if p.nowPlaying != nil {
-				p.nowPlaying = p.nowPlaying.next
+				if p.nowPlaying.Next != nil {
+					p.nowPlaying = p.nowPlaying.Next
+				} else {
+					p.nowPlaying = p.head
+				}
 			} else {
 				p.nowPlaying = p.head
 			}
 			p.playingTime = 0
 		case eventPrev:
 			if p.nowPlaying != nil {
-				p.nowPlaying = p.nowPlaying.previous
+				if p.nowPlaying.previous != nil {
+					p.nowPlaying = p.nowPlaying.previous
+				}
 			}
 			p.playingTime = 0
 		case eventPause:
@@ -80,6 +87,7 @@ func (p *Playlist) processEventLoop() {
 	}
 }
 
+// Streaming data
 func (p *Playlist) streamData() {
 
 	const playingPart = 5 * time.Second
@@ -87,14 +95,15 @@ func (p *Playlist) streamData() {
 		return
 	}
 
-	fmt.Println("dur", p.nowPlaying.duration, "playing", p.playingTime.Seconds())
 	diff := min(int(playingPart.Seconds()), p.nowPlaying.duration-int(p.playingTime.Seconds()))
-	fmt.Println("play", p.nowPlaying.name, diff, "sec")
+
+	log.Println("play", p.nowPlaying.name, diff, "sec")
 	time.Sleep(time.Duration(diff) * time.Second)
 
 	p.playingTime += time.Duration(diff) * time.Second
+
 	if int(p.playingTime.Seconds()) >= p.nowPlaying.duration {
-		fmt.Println("end playing", p.nowPlaying.name)
+		log.Println("end playing", p.nowPlaying.name)
 		p.playingTime = 0
 		select {
 		case p.events <- eventNext:
@@ -108,6 +117,7 @@ func (p *Playlist) streamData() {
 	}
 }
 
+// Helper function min
 func min(val1, val2 int) int {
 	if val1 <= val2 {
 		return val1
@@ -116,6 +126,7 @@ func min(val1, val2 int) int {
 	return val2
 }
 
+// Send event to channel
 func (p *Playlist) sendEvent(e event) {
 	for {
 		select {
@@ -130,15 +141,19 @@ func (p *Playlist) sendEvent(e event) {
 	}
 }
 
+// Play playlist
 func (p *Playlist) Play() {
+	log.Println("Play")
 	p.sendEvent(eventPlay)
 }
 
+// Pause playlist
 func (p *Playlist) Pause() {
-	fmt.Println("pause")
+	log.Println("Pause")
 	p.sendEvent(eventPause)
 }
 
+// Add song to playlist
 func (p *Playlist) AddSong(name string, duration int) {
 	s := &Song{
 		name:     name,
@@ -148,21 +163,60 @@ func (p *Playlist) AddSong(name string, duration int) {
 		p.head = s
 	} else {
 		currentNode := p.tail
-		currentNode.next = s
+		currentNode.Next = s
 		s.previous = p.tail
 	}
 	p.tail = s
 }
 
+// Switch to next song
 func (p *Playlist) Next() {
 	p.sendEvent(eventNext)
 }
 
+// Swith to previous song
 func (p *Playlist) Prev() {
 	p.sendEvent(eventPrev)
 }
 
+// Stop playing playlist
 func (p *Playlist) Stop() {
-	fmt.Println("Stop")
 	p.sendEvent(eventStop)
+}
+
+// Show now playing song
+func (p *Playlist) ShowSong() (string, int) {
+	return p.nowPlaying.name, p.nowPlaying.duration
+}
+
+type dbPlaylist struct {
+	Name     string
+	Duration int
+}
+
+func (p *Playlist) SetMemoryPlaylist() []dbPlaylist {
+	song := p.head
+	fmt.Println(song.name)
+	playlist := make([]dbPlaylist, 0)
+	for song != nil {
+		playlistModel := &dbPlaylist{Name: song.name, Duration: song.duration}
+		playlist = append(playlist, *playlistModel)
+		song = song.Next
+	}
+	return playlist
+
+}
+
+func (p *Playlist) IsEmpty() bool {
+	if p.head == nil {
+		return true
+	}
+	return false
+}
+
+func (p *Playlist) IsPlaying() bool {
+	if p.nowPlaying == nil {
+		return false
+	}
+	return true
 }

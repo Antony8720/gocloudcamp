@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package api;
+option go_package = "./proto";
+
+service Api {
+    rpc Play(Request) returns(Message) {}
+    rpc Pause(Request) returns(Message) {}
+    rpc AddSong(DataSongRequest) returns(AddSongResponse) {}
+    rpc Next(Request) returns(Message) {}
+    rpc Prev(Request) returns(Message) {}
+    rpc Stop(Request) returns(Message) {}
+    rpc ShowSong(SongName) returns(ShowSongResponse) {}
+    rpc UpdateSong(UpdateDataSongRequest) returns(Message) {}
+    rpc DeleteSong(SongName) returns(Message) {}
+
+}
+
+message Message {
+    string message = 1;
+}
+
+message Request {
+}
+
+
+message DataSongRequest {
+    string name = 1;
+    int32 duration = 2;
+}
+
+message AddSongResponse {
+    string addedSong = 1;
+}
+
+
+message SongName{
+    string name = 1;
+}
+
+message ShowSongResponse{
+    string name = 1;
+    int32 duration = 2;
+}
+
+message UpdateDataSongRequest {
+    string oldName = 1;
+    string newName = 2;
+    int32 duration = 3;
+}
